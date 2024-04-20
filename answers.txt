@@ -1,0 +1,118 @@
+p1
+
+CREATE DATABASE pandemic;
+USE pandemic;
+
+p2.1
+
+CREATE TABLE entity_codes (
+id INT AUTO_INCREMENT PRIMARY KEY,
+entity VARCHAR(255),
+code VARCHAR(255),
+CONSTRAINT unique_entity_code UNIQUE (entity, code)
+);
+
+
+INSERT INTO entity_codes (entity, code)
+SELECT  DISTINCT Entity, Code FROM infectious_cases;
+
+
+p2.2
+
+CREATE TABLE disease_cases (
+id INT AUTO_INCREMENT PRIMARY KEY,
+year INT,
+number_yaws VARCHAR(255),
+polio_cases INT,
+cases_guinea_worm INT,
+number_rabies VARCHAR(255),
+number_malaria VARCHAR(255),
+number_hiv VARCHAR(255),
+number_tuberculosis VARCHAR(255),
+number_smallpox VARCHAR(255),
+number_cholera_cases VARCHAR(255),
+entity_code_id INT,
+FOREIGN KEY (entity_code_id) REFERENCES entity_codes(id)
+);
+
+INSERT INTO disease_cases (year, number_yaws, polio_cases, cases_guinea_worm, number_rabies, number_malaria, number_hiv, number_tuberculosis, number_smallpox, number_cholera_cases, entity_code_id)
+SELECT Year, Number_yaws, polio_cases, cases_guinea_worm, Number_rabies, Number_malaria, Number_hiv, Number_tuberculosis, Number_smallpox, Number_cholera_cases, (
+    SELECT id FROM entity_codes
+    WHERE code = infectious_cases.code
+)
+FROM infectious_cases;
+
+
+
+
+p3
+
+SELECT 
+    e.id, 
+    e.entity, 
+    e.code, 
+    AVG(dc.number_rabies) AS Average, 
+    MIN(dc.number_rabies) AS Min, 
+    MAX(dc.number_rabies) AS Max, 
+    SUM(dc.number_rabies) AS Sum
+FROM 
+    entity_codes e
+JOIN 
+    disease_cases dc ON e.id = dc.entity_code_id
+WHERE 
+    dc.number_rabies IS NOT NULL
+GROUP BY 
+    e.id, e.entity, e.code
+ORDER BY 
+    Average DESC
+LIMIT 10
+
+
+p4
+
+SELECT 
+    e.id, 
+    e.entity, 
+    e.code, 
+    dc.year,
+    STR_TO_DATE(CONCAT(dc.year, '-01-01'), '%Y-%m-%d') AS StartOfYear,
+    CURDATE() AS CurrentDate,
+    TIMESTAMPDIFF(YEAR, STR_TO_DATE(CONCAT(dc.Year, '-01-01'), '%Y-%m-%d'), CURDATE()) AS YearsDifference
+FROM 
+    entity_codes e
+JOIN 
+    disease_cases dc ON e.id = dc.entity_code_id
+
+
+
+p5
+
+DELIMITER //
+CREATE FUNCTION YearsDifference(year INT)
+RETURNS INT
+DETERMINISTIC
+BEGIN
+    DECLARE startOfYear DATE;
+    DECLARE currentDate DATE;
+    DECLARE yearsDiff INT;
+
+    SET startOfYear = STR_TO_DATE(CONCAT(year, '-01-01'), '%Y-%m-%d');
+    SET currentDate = CURDATE();
+    SET yearsDiff = TIMESTAMPDIFF(YEAR, startOfYear, currentDate);
+
+    RETURN yearsDiff;
+END//
+DELIMITER ;
+
+
+
+SELECT 
+    e.id, 
+    e.entity, 
+    e.code, 
+    dc.year,
+    YearsDifference(dc.year) AS YearsDifference
+FROM 
+    entity_codes e
+JOIN 
+    disease_cases dc ON e.id = dc.entity_code_id;
